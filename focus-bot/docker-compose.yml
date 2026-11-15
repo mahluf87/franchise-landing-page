@@ -1,0 +1,25 @@
+# פריסה על VPS עם HTTPS אוטומטי (Caddy). דרוש דומיין שמצביע לשרת.
+# שימוש:  DOMAIN=focus.example.com docker compose up -d --build
+services:
+  bot:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - focus-data:/app/data
+    expose:
+      - "8080"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    command: caddy reverse-proxy --from ${DOMAIN} --to bot:8080
+    volumes:
+      - caddy-data:/data
+volumes:
+  focus-data:
+  caddy-data:

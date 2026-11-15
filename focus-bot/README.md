@@ -16,6 +16,8 @@
 3. `pip install -r requirements.txt && python run.py`
 4. שלח `/start` לבוט - הצ'אט שלך נרשם כבעלים והבוט מתעלם מכל אחד אחר.
 
+**פריסה על VPS (מומלץ):** `DOMAIN=focus.example.com docker compose up -d --build` (Caddy מטפל ב-HTTPS).
+
 הבוט חייב לרוץ 24/7 ולהיות נגיש מהאינטרנט (בשביל דיווחי הטלפון): VPS זול, Railway/Fly.io/Render, או Docker:
 `docker build -t focusbot . && docker run -d --env-file .env -p 8080:8080 -v focus-data:/app/data focusbot`
 (שים מאחורי HTTPS - Caddy / Cloudflare Tunnel / ה-proxy של הפלטפורמה.)
@@ -30,6 +32,7 @@ POST https://<הכתובת-שלך>/usage     Authorization: Bearer <PHONE_TOKEN>
 מצטבר ליום הנוכחי (כל דיווח מחליף את הקודם). לחלופין, אירוע בודד שנוסף לסכום: `POST /event {"app":"Instagram","minutes":3.5}`.
 
 ### אנדרואיד (אוטומטי)
+מדריך מלא צעד-צעד: [ANDROID.md](ANDROID.md).
 **MacroDroid / Tasker**: טריגר "אפליקציה נסגרה" לרשימת האפליקציות → מחשבים משך מאז שנפתחה → פעולת HTTP POST ל-`/event` עם שם האפליקציה והדקות. ל-MacroDroid זה בונים בכמה דקות מהתבנית "Application Launched/Closed" + משתנה זמן.
 
 ### אייפון
