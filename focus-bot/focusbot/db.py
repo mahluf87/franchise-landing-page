@@ -68,8 +68,9 @@ def flag_once(name: str) -> bool:
 
 # ---- usage ----
 def is_social(app_name: str) -> bool:
-    n = app_name.lower()
-    return any(s in n for s in config.SOCIAL_APPS)
+    n = app_name.lower().strip()
+    # שמות קצרים (כמו "X") נבדקים בהתאמה מלאה, אחרת "x" היה תופס גם Netflix/Firefox
+    return any(n == s or (len(s) > 2 and s in n) for s in config.SOCIAL_APPS)
 
 
 def set_usage(day, total_min=None, social_min=None, pickups=None, apps=None):
