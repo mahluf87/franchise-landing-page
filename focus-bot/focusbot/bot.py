@@ -10,6 +10,9 @@ from . import charts, config, db, server
 from .coach import Coach
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
+# httpx רושם כל בקשה כולל הטוקן בכתובת - משתיקים כדי שהטוקן לא ידלוף ללוגים
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 log = logging.getLogger("focusbot")
 coach = Coach()
 
