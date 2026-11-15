@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from datetime import date, datetime, timedelta
 from datetime import time as dtime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -27,6 +28,8 @@ HELP = """אני המאמן שלך. אני שואל, בודק, כועס ומענ
 /report [ימים] - גרף התקדמות
 /limit 120 45 - מכסה יומית: סך הכל, רשתות
 /punish - עונשים פתוחים
+/pause 4 - להשהות עונשים ל-4 ימים (או /pause 2026-11-19)
+/resume - להחזיר עונשים
 /help - העזרה הזאת"""
 
 
@@ -53,7 +56,14 @@ async def tell(app, text, **kw):
         await app.bot.send_message(chat_id=oid, text=text, **kw)
 
 
+def punishments_paused() -> bool:
+    until = db.get_setting("punish_paused_until")
+    return bool(until) and db.today() < until
+
+
 async def issue_punishment(app, reason: str, level: int):
+    if punishments_paused():
+        return
     text = coach.pick_punishment(level)
     pid = db.add_punishment(db.today(), text, reason)
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ ביצעתי", callback_data=f"pun:{pid}")]])
@@ -167,6 +177,31 @@ async def punish_cmd(update, ctx):
     for p in ps:
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("✅ ביצעתי", callback_data=f"pun:{p['id']}")]])
         await update.message.reply_text(f"⚖️ {p['text']}\n(על: {p['reason']}, {p['day']})", reply_markup=kb)
+
+
+@owner_only
+async def pause_cmd(update, ctx):
+    arg = ctx.args[0] if ctx.args else ""
+    today = datetime.now(config.TZ).date()
+    try:
+        until = today + timedelta(days=int(arg)) if arg.isdigit() else date.fromisoformat(arg)
+    except ValueError:
+        cur = db.get_setting("punish_paused_until")
+        state = f"מושהים עד {cur}" if punishments_paused() else "פעילים"
+        return await update.message.reply_text(f"עונשים כרגע: {state}.\nשימוש: /pause 4 (ימים) או /pause 2026-11-19")
+    if until <= today:
+        return await update.message.reply_text("התאריך צריך להיות בעתיד.")
+    db.set_setting("punish_paused_until", until.isoformat())
+    n = db.clear_open_punishments()
+    await update.message.reply_text(
+        f"עונשים מושהים. הם חוזרים ב-{until:%d/%m}.\n{n} עונשים פתוחים בוטלו.\nאני ממשיך למדוד, לשאול ולכעוס כרגיל."
+    )
+
+
+@owner_only
+async def resume_cmd(update, ctx):
+    db.set_setting("punish_paused_until", "")
+    await update.message.reply_text("העונשים חזרו. מעכשיו כל חריגה עולה לך.")
 
 
 @owner_only
@@ -329,7 +364,7 @@ def main():
 
     app = Application.builder().token(config.TOKEN).post_init(post_init).build()
     for name, fn in [("start", start), ("help", help_cmd), ("plan", plan), ("add", add), ("tasks", tasks_cmd), ("usage", usage_cmd),
-                     ("manual", manual), ("report", report), ("limit", limit_cmd), ("punish", punish_cmd), ("checkin", checkin_cmd)]:
+                     ("manual", manual), ("report", report), ("limit", limit_cmd), ("punish", punish_cmd), ("pause", pause_cmd), ("resume", resume_cmd), ("checkin", checkin_cmd)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(CallbackQueryHandler(on_button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_msg))

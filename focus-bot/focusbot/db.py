@@ -209,6 +209,11 @@ def open_punishments():
         return [dict(r) for r in c.execute("SELECT * FROM punishments WHERE done=0 ORDER BY id")]
 
 
+def clear_open_punishments() -> int:
+    with conn() as c:
+        return c.execute("UPDATE punishments SET done=1 WHERE done=0").rowcount
+
+
 def punishments_today_count(day):
     with conn() as c:
         return c.execute("SELECT COUNT(*) n FROM punishments WHERE day=?", (day,)).fetchone()["n"]
