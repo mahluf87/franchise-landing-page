@@ -75,25 +75,45 @@ def fmt_min(m):
     return f"{m // 60}:{m % 60:02d} שעות" if m >= 60 else f"{m} דק'"
 
 
+def fmt_long(m):
+    """דקות בניסוח מלא: 'דקה', '22 דקות', 'שעה ו-12 דקות'."""
+    m = int(round(m or 0))
+    if m < 60:
+        return "דקה" if m == 1 else f"{m} דקות"
+    h, r = divmod(m, 60)
+    hours = "שעה" if h == 1 else "שעתיים" if h == 2 else f"{h} שעות"
+    return hours if r == 0 else f"{hours} ו-{'דקה' if r == 1 else f'{r} דקות'}"
+
+
 def usage_line(u):
-    total_limit, social_limit = db.limits()
+    total_limit, _ = db.limits()
     if not u:
-        return "אין עדיין נתוני שימוש להיום (הטלפון לא דיווח)."
-    top = sorted(u["apps"].items(), key=lambda kv: -kv[1])[:5]
-    apps = "\n".join(f"  • {k}: {fmt_min(v)}" for k, v in top)
-    s = f"📱 סך הכל: {fmt_min(u['total_min'])} / {fmt_min(total_limit)}\n📲 רשתות: {fmt_min(u['social_min'])} / {fmt_min(social_limit)}"
+        return "📲 הטלפון עוד לא דיווח היום, אז אין לי נתוני שימוש."
+    out = [social_line(u)]
+    if u["total_min"] - u["social_min"] >= 1:
+        out.append(f"📱 בכל האפליקציות שנמדדות: {fmt_long(u['total_min'])} מתוך מכסה של {fmt_long(total_limit)}.")
     if u.get("pickups"):
-        s += f"\n🔓 הרמות טלפון: {u['pickups']}"
-    return s + (f"\n{apps}" if apps else "")
+        out.append(f"🔓 הרמות טלפון: {u['pickups']}")
+    top = [(k, v) for k, v in sorted(u["apps"].items(), key=lambda kv: -kv[1]) if v >= 0.5][:5]
+    if top:
+        out.append("פירוט:")
+        out += [f"  • {k}: {fmt_long(v)}" for k, v in top]
+    return "\n".join(out)
 
 
 def social_line(u):
     _, social_limit = db.limits()
     if not u:
         return "📲 הטלפון עוד לא דיווח היום."
-    left = social_limit - u["social_min"]
-    tail = f"נשארו {fmt_min(left)}" if left > 0 else f"חריגה של {fmt_min(-left)}"
-    return f"📲 רשתות היום: {fmt_min(u['social_min'])} מתוך {fmt_min(social_limit)} ({tail})"
+    used, left = u["social_min"], social_limit - u["social_min"]
+    head = f"📲 היום השתמשת ברשתות {fmt_long(used)} מתוך מכסה של {fmt_long(social_limit)}."
+    if int(round(used)) == 0:
+        return f"📲 היום עוד לא השתמשת ברשתות. המכסה שלך: {fmt_long(social_limit)}."
+    if left >= 0.5:
+        return head + f" נשארו לך {fmt_long(left)}."
+    if left > -0.5:
+        return head + " המכסה נגמרה."
+    return head + f" חרגת ב-{fmt_long(-left)}."
 
 
 def over_by(u):
@@ -172,10 +192,10 @@ async def limit_cmd(update, ctx):
         total, social = int(ctx.args[0]), int(ctx.args[1])
     except (IndexError, ValueError):
         t, s = db.limits()
-        return await update.message.reply_text(f"מכסה נוכחית: {t} דק' סך הכל, {s} דק' ברשתות.\nלשינוי: /limit 120 45")
+        return await update.message.reply_text(f"המכסה היומית שלך: {fmt_long(s)} ברשתות, {fmt_long(t)} בסך הכל.\nלשינוי: /limit 120 45 (קודם סך הכל, אחר כך רשתות)")
     db.set_setting("total_limit", total)
     db.set_setting("social_limit", social)
-    await update.message.reply_text(f"עודכן: {total} דק' סך הכל, {social} דק' ברשתות. אל תתחיל להתפשר.")
+    await update.message.reply_text(f"עודכן. המכסה היומית: {fmt_long(social)} ברשתות, {fmt_long(total)} בסך הכל.")
 
 
 @owner_only
@@ -335,7 +355,7 @@ async def handle_usage(app, day, event=None):
             sent = True
     # תגובה מיידית על כל שהייה משמעותית, כדי שהגלילה לא תעבור בשקט
     if not sent and event and event[1] >= config.SESSION_NOTIFY_MIN:
-        await tell(app, f"👀 {fmt_min(event[1])} ב-{event[0]}. " + await coach.say("session", app=event[0], minutes=event[1], social_today=u["social_min"], social_limit=social_limit) + "\n" + line)
+        await tell(app, f"👀 היית עכשיו {fmt_long(event[1])} ב-{event[0]}. " + await coach.say("session", app=event[0], minutes=event[1], social_today=u["social_min"], social_limit=social_limit) + "\n" + line)
 
 
 # ---------- scheduled jobs ----------
@@ -348,7 +368,7 @@ async def morning_job(ctx):
     if yu:
         _, social_limit = db.limits()
         verdict = "עמדת במכסה" if over_by(yu) == 0 else "חרגת מהמכסה"
-        msg += f"\n\nאתמול ברשתות: {fmt_min(yu['social_min'])} מתוך {fmt_min(social_limit)} - {verdict}."
+        msg += f"\n\nאתמול השתמשת ברשתות {fmt_long(yu['social_min'])} מתוך מכסה של {fmt_long(social_limit)} - {verdict}."
     await tell(ctx.application, msg + (f"\n🔥 רצף: {streak} ימים" if streak else ""))
 
 
