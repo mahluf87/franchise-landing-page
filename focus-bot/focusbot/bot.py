@@ -87,6 +87,15 @@ def usage_line(u):
     return s + (f"\n{apps}" if apps else "")
 
 
+def social_line(u):
+    _, social_limit = db.limits()
+    if not u:
+        return "📲 הטלפון עוד לא דיווח היום."
+    left = social_limit - u["social_min"]
+    tail = f"נשארו {fmt_min(left)}" if left > 0 else f"חריגה של {fmt_min(-left)}"
+    return f"📲 רשתות היום: {fmt_min(u['social_min'])} מתוך {fmt_min(social_limit)} ({tail})"
+
+
 def over_by(u):
     total_limit, social_limit = db.limits()
     return max(u["total_min"] - total_limit, u["social_min"] - social_limit, 0)
@@ -217,8 +226,9 @@ async def send_checkin(app):
     kb = InlineKeyboardMarkup(
         [[InlineKeyboardButton("✅ על המשימה", callback_data=f"ci:ok:{cid}"), InlineKeyboardButton("❌ סטיתי", callback_data=f"ci:off:{cid}")]]
     )
+    text += "\n\n" + social_line(db.get_usage(db.today()))
     if pending:
-        text += "\n\nפתוח: " + ", ".join(pending[:3])
+        text += "\nפתוח: " + ", ".join(pending[:3])
     await tell(app, text, reply_markup=kb)
     app.job_queue.run_once(checkin_timeout, config.CHECKIN_TIMEOUT_MIN * 60, data=cid, name=f"ci_timeout_{cid}")
 
@@ -293,21 +303,39 @@ async def text_msg(update: Update, ctx):
 
 
 # ---------- usage alerts (נקרא כשהטלפון מדווח) ----------
-async def handle_usage(app, day):
+async def handle_usage(app, day, event=None):
+    """event = (שם אפליקציה, דקות) כשהדיווח הוא על שהייה בודדת."""
     if day != db.today():
         return
     u = db.get_usage(day)
     if not u:
         return
     total_limit, social_limit = db.limits()
-    if over_by(u) > 0:
+    over = over_by(u)
+    ratio = max(u["total_min"] / max(total_limit, 1), u["social_min"] / max(social_limit, 1))
+    line = social_line(u)
+    sent = False
+    if over > 0:
         if db.flag_once(f"over_{day}"):
-            await tell(app, await coach.say("over_limit", total=u["total_min"], social=u["social_min"], total_limit=total_limit, social_limit=social_limit))
-            level = 1 if over_by(u) < 30 else 2
-            await issue_punishment(app, "חריגה מהמכסה", level)
-    elif u["total_min"] >= 0.8 * total_limit or u["social_min"] >= 0.8 * social_limit:
+            await tell(app, await coach.say("over_limit", total=u["total_min"], social=u["social_min"], total_limit=total_limit, social_limit=social_limit) + "\n" + line)
+            await issue_punishment(app, "חריגה מהמכסה", 1 if over < 30 else 2)
+            sent = True
+        else:
+            step = int(over // 15)  # תזכורת נוספת על כל רבע שעה של חריגה
+            if step >= 1 and db.flag_once(f"over_{day}_{step}"):
+                await tell(app, await coach.say("over_more", over_minutes=int(over)) + "\n" + line)
+                sent = True
+    elif ratio >= 0.8:
         if db.flag_once(f"warn_{day}"):
-            await tell(app, await coach.say("warn_limit", total=u["total_min"], social=u["social_min"]))
+            await tell(app, await coach.say("warn_limit", total=u["total_min"], social=u["social_min"]) + "\n" + line)
+            sent = True
+    elif ratio >= 0.5:
+        if db.flag_once(f"half_{day}"):
+            await tell(app, await coach.say("half_limit", social=u["social_min"], social_limit=social_limit) + "\n" + line)
+            sent = True
+    # תגובה מיידית על כל שהייה משמעותית, כדי שהגלילה לא תעבור בשקט
+    if not sent and event and event[1] >= config.SESSION_NOTIFY_MIN:
+        await tell(app, f"👀 {fmt_min(event[1])} ב-{event[0]}. " + await coach.say("session", app=event[0], minutes=event[1], social_today=u["social_min"], social_limit=social_limit) + "\n" + line)
 
 
 # ---------- scheduled jobs ----------
@@ -315,6 +343,12 @@ async def morning_job(ctx):
     ctx.application.bot_data["awaiting"] = "plan"
     streak = db.streak()
     msg = await coach.say("morning", streak_days=streak)
+    yday = (datetime.now(config.TZ).date() - timedelta(days=1)).isoformat()
+    yu = db.get_usage(yday)
+    if yu:
+        _, social_limit = db.limits()
+        verdict = "עמדת במכסה" if over_by(yu) == 0 else "חרגת מהמכסה"
+        msg += f"\n\nאתמול ברשתות: {fmt_min(yu['social_min'])} מתוך {fmt_min(social_limit)} - {verdict}."
     await tell(ctx.application, msg + (f"\n🔥 רצף: {streak} ימים" if streak else ""))
 
 
@@ -357,8 +391,8 @@ def main():
     async def post_init(app: Application):
         loop = asyncio.get_running_loop()
 
-        def on_update(day):
-            asyncio.run_coroutine_threadsafe(handle_usage(app, day), loop)
+        def on_update(day, event=None):
+            asyncio.run_coroutine_threadsafe(handle_usage(app, day, event), loop)
 
         server.start(on_update)
 

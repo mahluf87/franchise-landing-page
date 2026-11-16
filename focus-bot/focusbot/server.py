@@ -42,6 +42,7 @@ def make_handler(on_update):
                 n = int(self.headers.get("Content-Length", 0))
                 data = json.loads(self.rfile.read(n) or b"{}")
                 day = data.get("date") or db.today()
+                event = None
                 if self.path == "/usage":
                     db.set_usage(
                         day,
@@ -51,12 +52,13 @@ def make_handler(on_update):
                         apps=data.get("apps"),
                     )
                 elif self.path == "/event":
-                    db.add_app_time(day, str(data["app"]), float(data["minutes"]))
+                    event = (str(data["app"]), float(data["minutes"]))
+                    db.add_app_time(day, *event)
                 else:
                     return self._send(404, {"error": "not found"})
             except (KeyError, ValueError, json.JSONDecodeError) as e:
                 return self._send(400, {"error": str(e)})
-            on_update(day)
+            on_update(day, event)
             self._send(200, {"ok": True, "usage": db.get_usage(day)})
 
         def log_message(self, fmt, *args):  # שקט

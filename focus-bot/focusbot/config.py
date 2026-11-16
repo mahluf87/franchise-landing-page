@@ -27,3 +27,4 @@ MORNING_TIME = os.environ.get("MORNING_TIME", "08:00")
 CHECKIN_TIMES = [t.strip() for t in os.environ.get("CHECKIN_TIMES", "10:30,13:00,15:30,18:00,20:30").split(",") if t.strip()]
 EVENING_TIME = os.environ.get("EVENING_TIME", "21:30")
 CHECKIN_TIMEOUT_MIN = int(os.environ.get("CHECKIN_TIMEOUT_MIN", "20"))
+SESSION_NOTIFY_MIN = float(os.environ.get("SESSION_NOTIFY_MIN", "5"))  # תגובה מיידית על כל שהייה ארוכה מזה
