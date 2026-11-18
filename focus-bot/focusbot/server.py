@@ -1,7 +1,8 @@
 """שרת HTTP קטן שמקבל דיווחי שימוש מהטלפון.
 
 POST /usage  {"total_minutes":95,"social_minutes":40,"pickups":60,"apps":{"Instagram":25}, "date":"2026-11-12"}   (מצטבר ליום)
-POST /event  {"app":"Instagram","minutes":3.5}                                                                   (הוספה בודדת)
+POST /event  {"app":"Instagram","minutes":3.5}                                                                   (הוספה בודדת, משוערת)
+POST /snapshot {"packages":"com.instagram.android,...","seconds":"1234,..."}                                    (מדויק, מ-Tasker)
 GET  /health
 כותרת חובה:  Authorization: Bearer <PHONE_TOKEN>
 """
@@ -51,7 +52,17 @@ def make_handler(on_update):
                         pickups=data.get("pickups"),
                         apps=data.get("apps"),
                     )
+                elif self.path == "/snapshot":
+                    def as_list(v):
+                        return v if isinstance(v, list) else str(v or "").split(",")
+                    pk, sc = as_list(data["packages"]), as_list(data["seconds"])
+                    if len(pk) != len(sc):
+                        raise ValueError(f"packages ({len(pk)}) and seconds ({len(sc)}) differ in length")
+                    event = ("snapshot", db.save_snapshot(day, pk, sc))
                 elif self.path == "/event":
+                    if db.get_setting("snapshot_day") == day:
+                        # כשיש נתונים מדויקים מאנדרואיד, דיווחי MacroDroid המשוערים מתעלמים
+                        return self._send(200, {"ok": True, "ignored": "snapshot active"})
                     event = (str(data["app"]), float(data["minutes"]))
                     db.add_app_time(day, *event)
                 else:

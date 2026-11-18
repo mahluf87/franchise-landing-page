@@ -73,7 +73,7 @@ def is_social(app_name: str) -> bool:
     return any(n == s or (len(s) > 2 and s in n) for s in config.SOCIAL_APPS)
 
 
-def set_usage(day, total_min=None, social_min=None, pickups=None, apps=None):
+def set_usage(day, total_min=None, social_min=None, pickups=None, apps=None, replace_apps=False):
     """דיווח מצטבר של היום (מחליף ערכים קיימים)."""
     apps = apps or {}
     if social_min is None and apps:
@@ -82,7 +82,7 @@ def set_usage(day, total_min=None, social_min=None, pickups=None, apps=None):
         total_min = sum(apps.values())
     with conn() as c:
         old = c.execute("SELECT * FROM usage WHERE day=?", (day,)).fetchone()
-        merged_apps = json.loads(old["apps"]) if old else {}
+        merged_apps = {} if replace_apps or not old else json.loads(old["apps"])
         merged_apps.update(apps)
         c.execute(
             "INSERT INTO usage(day,total_min,social_min,pickups,apps,updated_at) VALUES(?,?,?,?,?,?) "
@@ -126,14 +126,38 @@ def usage_range(days: int):
     return {r["day"]: dict(r) for r in rows}
 
 
+def save_snapshot(day, packages, seconds):
+    """תמונת מצב מדויקת מאנדרואיד (Tasker App Info): זמן בחזית לכל חבילה מאז חצות.
+    מחליפה את כל מה שנמדד היום ומחזירה את התוספת בדקות-רשתות מאז הדיווח הקודם."""
+    before = get_usage(day)
+    prev_social = before["social_min"] if before else 0
+    apps, social, total = {}, 0.0, 0.0
+    for pkg, sec in zip(packages, seconds):
+        pkg = pkg.strip()
+        try:
+            m = max(float(sec), 0) / 60
+        except ValueError:
+            continue
+        if not pkg or m <= 0:
+            continue
+        total += m
+        if pkg in config.SOCIAL_PACKAGES:
+            name = config.SOCIAL_PACKAGES[pkg]
+            apps[name] = round(apps.get(name, 0) + m, 2)
+            social += m
+    set_usage(day, total_min=round(total, 2), social_min=round(social, 2), apps=apps, replace_apps=True)
+    set_setting("snapshot_day", day)
+    return max(social - prev_social, 0)
+
+
 def streak() -> int:
-    """ימים רצופים (עד אתמול, ועוד היום אם עדיין בתוך המכסה) מתחת למכסה הכוללת."""
-    total_limit, social_limit = limits()
+    """ימים רצופים (עד אתמול) שבהם הזמן ברשתות היה בתוך המכסה."""
+    _, social_limit = limits()
     n = 0
     d = datetime.now(config.TZ).date() - timedelta(days=1)
     while True:
         u = get_usage(d.isoformat())
-        if not u or u["total_min"] > total_limit or u["social_min"] > social_limit:
+        if not u or u["social_min"] > social_limit:
             break
         n += 1
         d -= timedelta(days=1)
