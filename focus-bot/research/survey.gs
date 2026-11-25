@@ -1,128 +1,182 @@
 /**
- * בונה את סקר "הזמן שלנו ברשתות" ב-Google Forms, עם גיליון תשובות מחובר.
- * הרצה: script.google.com ← פרויקט חדש ← להדביק את כל הקובץ ← Run (buildSurvey) ← לאשר הרשאות.
- * בסוף: View ← Logs (או Execution log) מציג קישור לטופס להפצה וקישור לגיליון התשובות.
+ * בונה את הסקר "הטלפון והזמן שלנו" ב-Google Forms, עם גיליון תשובות מחובר.
+ * הסקר אנונימי: לא נאספים מיילים, שמות או פרטי קשר.
+ *
+ * הרצה: script.google.com ← פרויקט חדש ← להדביק את כל הקובץ ← שמירה ← Run (buildSurvey) ← לאשר הרשאות.
+ * בסוף, ב-Execution log: קישור להפצה, קישור לעריכה וקישור לגיליון התשובות.
  */
 function buildSurvey() {
-  var form = FormApp.create('הזמן שלנו ברשתות - סקר קצר');
+  var form = FormApp.create('הטלפון והזמן שלנו - סקר קצר');
   form.setDescription(
-    'סקר של 3-4 דקות על הטלפון, הרשתות החברתיות והזמן שלנו.\n' +
-    'הסקר אנונימי. בסוף אפשר (לא חובה) להשאיר פרטים אם תרצו להיות מהראשונים לנסות פתרון שאנחנו מפתחים.\n' +
-    'תודה שאתם עוזרים!'
+    'סקר של 4 דקות על הטלפון והזמן שלנו.\n' +
+    'הסקר אנונימי לגמרי: לא נאספים שם, מייל או פרטי קשר.\n' +
+    'אין תשובות נכונות. תשובה כנה עוזרת לנו הרבה יותר מתשובה נחמדה 🙏'
   );
   form.setProgressBar(true);
-  form.setConfirmationMessage('תודה רבה! התשובות שלך יעזרו לנו לבנות משהו שבאמת עובד.');
+  form.setConfirmationMessage(
+    'תודה רבה!\n' +
+    'אם יש לך חבר/ה שגם מרגיש/ה שהטלפון לוקח יותר מדי זמן, נשמח שתעביר/י לו/ה את הסקר 🙏'
+  );
 
-  // ---------- עמוד 1: פרטים כלליים ----------
-  form.addMultipleChoiceItem().setTitle('גיל').setRequired(true)
-    .setChoiceValues(['18-24', '25-34', '35-44', '45-54', '55+']);
-  form.addMultipleChoiceItem().setTitle('מגדר').setRequired(false)
-    .setChoiceValues(['גבר', 'אישה', 'מעדיף/ה לא לענות']);
+  var SCREEN_RANGES = ['פחות מ-2 שעות', '2-3 שעות', '3-4 שעות', '4-5 שעות', '5-6 שעות', 'יותר מ-6 שעות'];
+
+  function atMost(n) {
+    return FormApp.createCheckboxValidation()
+      .setHelpText('אפשר לבחור עד ' + n)
+      .requireSelectAtMost(n)
+      .build();
+  }
+
+  // ---------- חלק 1: הטלפון שלך ----------
+  form.addSectionHeaderItem().setTitle('הטלפון שלך');
+
   form.addMultipleChoiceItem().setTitle('איזה טלפון יש לך?').setRequired(true)
     .setChoiceValues(['אנדרואיד (סמסונג, שיאומי, פיקסל וכו\')', 'אייפון', 'אחר']);
-  var segment = form.addMultipleChoiceItem()
-    .setTitle('מה מתאר אותך הכי טוב?')
-    .setHelpText('אם כמה מתאימים, בחר/י את המרכזי. בהמשך תוכל/י לסמן עוד.')
-    .setRequired(true);
 
-  // ---------- עמוד: עצמאים ----------
-  var pBiz = form.addPageBreakItem().setTitle('עסק ועבודה');
-  form.addMultipleChoiceItem().setTitle('כמה מהזמן שלך ברשתות הוא לצורכי העסק (פרסום, לקוחות, תוכן)?').setRequired(true)
-    .setChoiceValues(['כמעט הכול', 'רובו', 'בערך חצי', 'מיעוטו', 'כמעט כלום']);
-  form.addCheckboxItem().setTitle('מה קורה לך? (אפשר לסמן כמה)').setRequired(false)
-    .setChoiceValues([
-      'נכנס/ת לפרסם או לענות ללקוח ונתקע/ת בפיד',
-      'בודק/ת הודעות ורשתות כל כמה דקות',
-      'קשה לי להתרכז במשימה ארוכה',
-      'עובד/ת עד מאוחר כי היום "הלך" על הטלפון',
-      'אף אחד מאלה'
-    ]).showOtherOption(true);
-  form.addMultipleChoiceItem().setTitle('כמה שעות עבודה בשבוע, לדעתך, הולכות על הסחות בטלפון?').setRequired(true)
-    .setChoiceValues(['0-2', '3-5', '6-10', 'יותר מ-10', 'לא יודע/ת']);
+  form.addMultipleChoiceItem().setTitle('כמה זמן מסך יש לך ביום, לדעתך?')
+    .setHelpText('זמן מסך = כל הזמן שהטלפון פתוח ואת/ה משתמש/ת בו.')
+    .setRequired(true)
+    .setChoiceValues(SCREEN_RANGES);
 
-  // ---------- עמוד: התפתחות אישית ----------
-  var pDev = form.addPageBreakItem().setTitle('התפתחות אישית');
-  form.addCheckboxItem().setTitle('איך את/ה עובד/ת על עצמך? (אפשר לסמן כמה)').setRequired(false)
-    .setChoiceValues(['אימון אישי / קואצ\'ינג', 'קורסים או סדנאות', 'ספרים או פודקאסטים', 'מדיטציה / מיינדפולנס', 'אפליקציות הרגלים', 'טיפול'])
+  form.addMultipleChoiceItem().setTitle('בדיקה של 30 שניות: כמה זה בפועל?')
+    .setHelpText('אנדרואיד: הגדרות ← רווחה דיגיטלית. אייפון: הגדרות ← זמן מסך. הממוצע היומי.')
+    .setRequired(true)
+    .setChoiceValues(SCREEN_RANGES.concat(['לא בדקתי']));
+
+  form.addCheckboxItem().setTitle('אילו אפליקציות לוקחות לך הכי הרבה זמן? (עד 3)').setRequired(true)
+    .setValidation(atMost(3))
+    .setChoiceValues(['אינסטגרם', 'טיקטוק', 'פייסבוק', 'יוטיוב', 'וואטסאפ', 'X (טוויטר)', 'אתרי חדשות', 'משחקים', 'נטפליקס / סטרימינג'])
     .showOtherOption(true);
-  form.addMultipleChoiceItem().setTitle('האם צמצום הזמן בטלפון וברשתות הוא חלק מהמטרות שלך?').setRequired(true)
-    .setChoiceValues(['כן, וכבר עובד/ת על זה', 'כן, אבל עוד לא התחלתי', 'לא כרגע']);
-  form.addMultipleChoiceItem().setTitle('אם היה לך מאמן/ת, היית מסכים/ה שיראה את הזמן שלך ברשתות כדי לעזור לך?').setRequired(true)
-    .setChoiceValues(['כן', 'אולי', 'לא']);
 
-  // ---------- עמוד: ספורט וכושר ----------
-  var pFit = form.addPageBreakItem().setTitle('ספורט וכושר');
-  form.addMultipleChoiceItem().setTitle('כמה פעמים בשבוע את/ה מתאמן/ת?').setRequired(true)
-    .setChoiceValues(['1-2', '3-4', '5-6', 'כל יום']);
-  form.addMultipleChoiceItem().setTitle('את/ה בטלפון בשעה שלפני השינה?').setRequired(true)
-    .setChoiceValues(['כמעט כל ערב', 'לפעמים', 'כמעט אף פעם']);
-  form.addMultipleChoiceItem().setTitle('את/ה מודד/ת שינה או התאוששות?').setRequired(true)
-    .setChoiceValues(['כן, עם שעון חכם', 'כן, עם אפליקציה', 'לא']);
-  form.addScaleItem().setTitle('כמה מעניין אותך לראות את הקשר בין הטלפון בערב לבין השינה והביצועים שלך?')
-    .setBounds(1, 5).setLabels('לא מעניין', 'מאוד מעניין').setRequired(true);
+  form.addCheckboxItem().setTitle('באילו רגעים את/ה הכי גולל/ת? (עד 3)').setRequired(true)
+    .setValidation(atMost(3))
+    .setChoiceValues([
+      'מיד כשאני מתעורר/ת',
+      'בעבודה, כשקשה או משעמם',
+      'בהמתנה או בדרך',
+      'אחרי העבודה, כדי להתנתק',
+      'במיטה לפני השינה',
+      'כשאני עם אנשים'
+    ])
+    .showOtherOption(true);
 
-  // ---------- עמוד משותף לכולם ----------
-  var pAll = form.addPageBreakItem().setTitle('הזמן שלך ברשתות');
-  form.addCheckboxItem().setTitle('מה עוד מתאים לך? (אפשר לסמן כמה)').setRequired(false)
-    .setChoiceValues(['עצמאי/ת או בעל/ת עסק', 'בתהליך התפתחות אישית', 'מתאמן/ת באופן קבוע', 'הורה']);
-  form.addMultipleChoiceItem().setTitle('כמה זמן ביום, לדעתך, את/ה ברשתות החברתיות?').setRequired(true)
-    .setChoiceValues(['פחות משעה', '1-2 שעות', '2-3 שעות', '3-4 שעות', 'יותר מ-4 שעות']);
-  form.addTextItem().setTitle('ואם בא לך לבדוק: כמה זה בפועל?')
-    .setHelpText('בהגדרות הטלפון: "רווחה דיגיטלית" (אנדרואיד) או "זמן מסך" (אייפון). הממוצע היומי, לדוגמה: 2 שעות 40 דקות. לא חובה.')
-    .setRequired(false);
-  form.addScaleItem().setTitle('כמה את/ה רוצה לצמצם את הזמן ברשתות?')
-    .setBounds(1, 10).setLabels('בכלל לא', 'מאוד').setRequired(true);
-  form.addCheckboxItem().setTitle('מה הכי מטריד אותך בזמן ברשתות? (אפשר לסמן כמה)').setRequired(true)
+  form.addMultipleChoiceItem().setTitle('כמה מהזמן שלך ברשתות החברתיות הוא לצורכי עבודה?').setRequired(true)
+    .setChoiceValues(['כמעט כלום', 'מעט', 'בערך חצי', 'רובו']);
+
+  // ---------- חלק 2: מה זה עושה לך ----------
+  form.addPageBreakItem().setTitle('מה זה עושה לך');
+
+  form.addScaleItem().setTitle('עד כמה את/ה מרוצה מהזמן שאת/ה מבלה בטלפון?')
+    .setBounds(1, 5).setLabels('בכלל לא מרוצה', 'מאוד מרוצה').setRequired(true);
+
+  form.addCheckboxItem().setTitle('מה הכי מפריע לך בזה? (עד 2)').setRequired(true)
+    .setValidation(atMost(2))
     .setChoiceValues([
       'זמן שהולך לאיבוד',
       'פגיעה בריכוז ובפרודוקטיביות',
       'פגיעה בשינה',
       'מצב רוח, השוואה לאחרים',
-      'פחות זמן עם משפחה וחברים',
-      'שום דבר לא מטריד אותי'
-    ]).showOtherOption(true);
-  form.addCheckboxItem().setTitle('מה כבר ניסית? (אפשר לסמן כמה)').setRequired(true)
+      'פחות זמן עם אנשים קרובים',
+      'שום דבר לא מפריע לי'
+    ]);
+
+  form.addParagraphTextItem()
+    .setTitle('ספר/י על הפעם האחרונה שהרגשת שבזבזת יותר מדי זמן בטלפון. מה קרה?')
+    .setHelpText('לא חובה, אבל זה עוזר לנו מאוד.')
+    .setRequired(false);
+
+  // ---------- חלק 3: מה ניסית ----------
+  form.addPageBreakItem().setTitle('מה ניסית');
+
+  form.addCheckboxItem().setTitle('מה ניסית כדי לצמצם? (אפשר כמה)').setRequired(true)
     .setChoiceValues([
       'הגבלה מובנית בטלפון (זמן מסך / רווחה דיגיטלית)',
       'אפליקציה ייעודית (Opal, one sec, מוח וכו\')',
       'מחיקת אפליקציות',
-      'טלפון פשוט / "טלפון כשר"',
-      'פשוט כוח רצון',
-      'עוד לא ניסיתי כלום'
-    ]).showOtherOption(true);
-  form.addParagraphTextItem().setTitle('אם ניסית משהו, מה קרה? למה זה עבד או לא עבד?').setRequired(false);
-  form.addCheckboxItem().setTitle('מה הכי היה עוזר לך? (עד 3)')
-    .setRequired(true)
-    .setValidation(FormApp.createCheckboxValidation().requireSelectAtMost(3).build())
+      'טלפון פשוט / כשר',
+      'כוח רצון',
+      'לא ניסיתי'
+    ])
+    .showOtherOption(true);
+
+  form.addMultipleChoiceItem().setTitle('כמה זמן זה החזיק?').setRequired(true)
+    .setChoiceValues(['לא ניסיתי', 'פחות משבוע', '1-4 שבועות', '1-3 חודשים', 'עדיין עובד לי']);
+
+  form.addMultipleChoiceItem().setTitle('למה זה הפסיק לעבוד? (הסיבה העיקרית)').setRequired(true)
     .setChoiceValues([
-      'חסימה של האפליקציות כשהמכסה היומית נגמרת',
-      'עצירה של כמה שניות לפני שאפליקציה נפתחת',
-      'חבר או קבוצה שרואים את המספרים שלי',
-      'מאמן (אדם או AI) שמדבר איתי על זה',
-      'דוח שבועי שמראה לי את ההתקדמות',
-      'תגמול כשאני עומד/ת ביעד',
-      'הבנה של מה זה עושה לשינה, לריכוז ולמצב הרוח'
+      'היה קל מדי לעקוף',
+      'הרגיש מגביל ומעצבן מדי',
+      'איבדתי מוטיבציה',
+      'הייתי צריך/ה את הטלפון לעבודה',
+      'זה עדיין עובד לי',
+      'לא ניסיתי'
+    ])
+    .showOtherOption(true);
+
+  // ---------- חלק 4: מה היה עובד לך ----------
+  form.addPageBreakItem().setTitle('מה היה עובד לך');
+
+  form.addMultipleChoiceItem().setTitle('כשנגמר הזמן שהקצבת לרשתות, מה היית רוצה שיקרה?').setRequired(true)
+    .setChoiceValues([
+      'רק תזכורת',
+      'עצירה של כמה שניות ושאלה "בטוח?"',
+      'חסימה עד מחר, שאפשר לעקוף במאמץ',
+      'חסימה מוחלטת עד מחר',
+      'שמישהו שבחרתי יקבל עדכון',
+      'לא הייתי רוצה מגבלה'
     ]);
-  form.addMultipleChoiceItem().setTitle('כמה היית מוכן/ה לשלם בחודש על אפליקציה שבאמת מורידה לך את הזמן ברשתות בחצי?').setRequired(true)
-    .setChoiceValues(['לא הייתי משלם/ת', 'עד 15 ₪', '15-30 ₪', '30-50 ₪', 'יותר מ-50 ₪']);
-  form.addTextItem().setTitle('רוצה להיות מהראשונים לנסות? השאר/י מייל או טלפון')
-    .setHelpText('לא חובה. נשתמש בזה רק כדי להזמין אותך לגרסת הניסיון, ולא נעביר לאף אחד.')
-    .setRequired(false);
 
-  // ---------- ניווט לפי "מה מתאר אותך" ----------
-  segment.setChoices([
-    segment.createChoice('עצמאי/ת או בעל/ת עסק', pBiz),
-    segment.createChoice('בתהליך התפתחות אישית (אימון, קורסים, סדנאות)', pDev),
-    segment.createChoice('מתאמן/ת באופן קבוע', pFit),
-    segment.createChoice('אף אחד מאלה', pAll)
-  ]);
-  // בסוף כל עמוד ייעודי קופצים לעמוד המשותף (setGoToPage על מעבר העמוד שאחריו)
-  pDev.setGoToPage(pAll); // אחרי עמוד "עסק"
-  pFit.setGoToPage(pAll); // אחרי עמוד "התפתחות"
-  // אחרי עמוד "כושר" ממשיכים לעמוד המשותף ממילא
+  form.addMultipleChoiceItem()
+    .setTitle('היית מסכים/ה שחבר/ה, בן/בת זוג או מאמן/ת יראו את הזמן שלך ברשתות, כדי לעזור לך לעמוד ביעד?')
+    .setRequired(true)
+    .setChoiceValues(['כן', 'אולי', 'לא']);
 
-  // ---------- גיליון תשובות ----------
-  var ss = SpreadsheetApp.create('תשובות - הזמן שלנו ברשתות');
+  form.addMultipleChoiceItem().setTitle('מה הכי היה גורם לך להתמיד?').setRequired(true)
+    .setChoiceValues([
+      'לראות התקדמות ורצף ימים',
+      'אתגר מול חברים',
+      'מאמן/ת (אדם או AI) שמדבר/ת איתי על זה',
+      'לראות מה זה עושה לשינה ולריכוז שלי',
+      'פרס כשאני עומד/ת ביעד'
+    ])
+    .showOtherOption(true);
+
+  // ---------- חלק 5: תשלום ----------
+  form.addPageBreakItem().setTitle('תשלום');
+
+  form.addMultipleChoiceItem()
+    .setTitle('בשנה האחרונה, שילמת על אפליקציה, קורס או מאמן/ת כדי לשפר הרגל? (כושר, תזונה, למידה, מדיטציה וכו\')')
+    .setRequired(true)
+    .setChoiceValues(['לא', 'כן, עד 50 ₪ בחודש', 'כן, 50-150 ₪ בחודש', 'כן, יותר מ-150 ₪ בחודש']);
+
+  form.addMultipleChoiceItem()
+    .setTitle('אם אפליקציה באמת הייתה מורידה לך את הזמן ברשתות משמעותית, כמה היה הוגן לשלם בחודש?')
+    .setRequired(true)
+    .setChoiceValues(['0 ₪', 'עד 15 ₪', '15-30 ₪', '30-50 ₪', 'יותר מ-50 ₪']);
+
+  // ---------- חלק 6: עליך ----------
+  form.addPageBreakItem().setTitle('קצת עליך');
+
+  form.addMultipleChoiceItem().setTitle('גיל').setRequired(true)
+    .setChoiceValues(['18-24', '25-34', '35-44', '45-54', '55+']);
+
+  form.addMultipleChoiceItem().setTitle('מצב תעסוקתי').setRequired(true)
+    .setChoiceValues(['שכיר/ה', 'עצמאי/ת או בעל/ת עסק', 'סטודנט/ית', 'חייל/ת', 'לא עובד/ת כרגע', 'פנסיונר/ית']);
+
+  form.addCheckboxItem().setTitle('מה עוד נכון לגביך? (אפשר כמה)').setRequired(false)
+    .setChoiceValues([
+      'הורה לילדים עד גיל 12',
+      'מתאמן/ת 3 פעמים בשבוע ומעלה',
+      'בתהליך התפתחות אישית (אימון, קורסים, טיפול)',
+      'עובד/ת בעיקר מהבית',
+      'אף אחד מאלה'
+    ]);
+
+  form.addMultipleChoiceItem().setTitle('מגדר').setRequired(false)
+    .setChoiceValues(['גבר', 'אישה', 'מעדיף/ה לא לענות']);
+
+  // ---------- גיליון תשובות ופרסום ----------
+  var ss = SpreadsheetApp.create('תשובות - הטלפון והזמן שלנו');
   form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
 
   // טפסים חדשים עשויים להיווצר במצב "לא פורסם"; מפרסמים ופותחים לתשובות
