@@ -40,7 +40,7 @@ const page3 = node({
     parameters: {
       operation: 'page',
       defineForm: 'fields',
-      formFields: { values: [{"fieldLabel": "מה ניסית כדי לצמצם? (אפשר כמה)", "fieldName": "tried", "fieldType": "checkbox", "requiredField": true, "fieldOptions": {"values": [{"option": "הגבלה מובנית בטלפון (זמן מסך / רווחה דיגיטלית)"}, {"option": "אפליקציה ייעודית (Opal, one sec, מוח וכו')"}, {"option": "מחיקת אפליקציות"}, {"option": "טלפון פשוט / כשר"}, {"option": "כוח רצון"}, {"option": "אחר"}, {"option": "לא ניסיתי"}]}}, {"fieldLabel": "כמה זמן זה החזיק?", "fieldName": "lasted", "fieldType": "radio", "requiredField": true, "fieldOptions": {"values": [{"option": "לא ניסיתי"}, {"option": "פחות משבוע"}, {"option": "1-4 שבועות"}, {"option": "1-3 חודשים"}, {"option": "עדיין עובד לי"}]}}, {"fieldLabel": "למה זה הפסיק לעבוד? (הסיבה העיקרית)", "fieldName": "why_stopped", "fieldType": "radio", "requiredField": true, "fieldOptions": {"values": [{"option": "היה קל מדי לעקוף"}, {"option": "הרגיש מגביל ומעצבן מדי"}, {"option": "איבדתי מוטיבציה"}, {"option": "הייתי צריך/ה את הטלפון לעבודה"}, {"option": "זה עדיין עובד לי"}, {"option": "לא ניסיתי"}, {"option": "אחר"}]}}] },
+      formFields: { values: [{"fieldLabel": "מה ניסית כדי לצמצם? (אפשר כמה)", "fieldName": "tried", "fieldType": "checkbox", "requiredField": true, "fieldOptions": {"values": [{"option": "הגבלה מובנית בטלפון (זמן מסך / רווחה דיגיטלית)"}, {"option": "אפליקציה ייעודית (Opal, one sec, מוח וכו')"}, {"option": "מחיקת אפליקציות"}, {"option": "טלפון פשוט / כשר"}, {"option": "כוח רצון"}, {"option": "אחר"}, {"option": "לא ניסיתי"}]}}, {"fieldLabel": "אם ניסית משהו: כמה זמן זה החזיק לך?", "fieldName": "lasted", "fieldType": "radio", "requiredField": true, "fieldOptions": {"values": [{"option": "לא ניסיתי"}, {"option": "פחות משבוע"}, {"option": "1-4 שבועות"}, {"option": "1-3 חודשים"}, {"option": "עדיין עובד לי"}, {"option": "אני באמצע ניסיון עכשיו"}]}}, {"fieldLabel": "ואם זה הפסיק לעבוד, למה? (הסיבה העיקרית)", "fieldName": "why_stopped", "fieldType": "radio", "requiredField": true, "fieldOptions": {"values": [{"option": "היה קל מדי לעקוף"}, {"option": "הרגיש מגביל ומעצבן מדי"}, {"option": "איבדתי מוטיבציה"}, {"option": "הייתי צריך/ה את הטלפון לעבודה"}, {"option": "זה עדיין עובד לי"}, {"option": "עוד לא הפסיק, אני באמצע ניסיון"}, {"option": "לא ניסיתי"}, {"option": "אחר"}]}}] },
       options: { formTitle: 'הטלפון והזמן שלנו', formDescription: "<b>חלק 3 מתוך 6: מה ניסית</b>", buttonLabel: "המשך", appendAttribution: false, customCss: "html, body, form, .card, .form-group, label, p, h1, h2, input, textarea, select { direction: rtl; text-align: right; } .checkbox-label, .radio-label, .multiselect-option { direction: rtl; }" }
     },
     position: [1020, 300]
@@ -166,6 +166,7 @@ const done = node({
   output: [{}]
 });
 
+// Live in n8n as workflow 1FAcL1dRAj4YZ4D8 (timezone Asia/Jerusalem set in workflow settings)
 export default workflow('phone-time-survey', 'סקר: הטלפון והזמן שלנו')
   .add(page1)
   .to(page2)
